@@ -41,7 +41,11 @@
 </head>
 <body class="bg-gray-900 text-white">
     <div id="root"></div>
-    <!-- Vite entry point -->
-    <script type="module" src="./index.tsx"></script>
+    <!-- 
+      This points to the TSX file during development. 
+      Vite will automatically replace this with the correct bundled .js file 
+      when you run 'npm run build'.
+    -->
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
