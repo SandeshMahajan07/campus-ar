@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CampusNode } from '../types';
 import { CAMPUS_DATA } from '../constants';
@@ -8,13 +7,15 @@ interface NavigationUIProps {
   currentInstruction: string | null;
   activePath: CampusNode[] | null;
   onReset: () => void;
+  isWaitingForScan: boolean; // 1. WE ADDED THIS TO FIX YOUR ERROR
 }
 
 const NavigationUI: React.FC<NavigationUIProps> = ({ 
   onStartNavigation, 
   currentInstruction, 
   activePath,
-  onReset 
+  onReset,
+  isWaitingForScan // 2. WE RECEIVE IT HERE
 }) => {
   const [dest, setDest] = useState<string>('');
 
@@ -28,9 +29,10 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
               CampusPath AR
             </h1>
-            <p className="text-[10px] text-gray-400 tracking-widest uppercase">Geospatial Navigation</p>
+            <p className="text-sm text-gray-400 tracking-widest uppercase">Geospatial Navigation</p>
           </div>
-          {activePath && (
+          {/* Show reset button if navigating OR waiting to scan */}
+          {(activePath || isWaitingForScan) && (
              <button onClick={onReset} className="bg-white/10 p-2 rounded-full hover:bg-white/20">
                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" /></svg>
              </button>
@@ -39,7 +41,9 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
       </div>
 
       <div className="space-y-4 pointer-events-auto">
-        {!activePath ? (
+        {/* 3. WE UPDATE THIS LOGIC TO HANDLE ALL 3 STATES */}
+        {!activePath && !isWaitingForScan ? (
+          /* STATE 1: Choose destination */
           <div className="bg-gray-900/80 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-2xl">
             <div className="space-y-4">
               <div>
@@ -70,13 +74,26 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
                 <span>Initialize AR Guidance</span>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               </button>
-              
-              <p className="text-[10px] text-center text-gray-500">
-                You will need to scan a nearby QR code to anchor your position after clicking start.
-              </p>
+            </div>
+          </div>
+        ) : isWaitingForScan ? (
+          /* STATE 2: Waiting for the user to scan a QR code */
+          <div className="bg-yellow-500/90 backdrop-blur-lg p-6 rounded-3xl shadow-2xl animate-in slide-in-from-bottom border border-yellow-400/30">
+            <div className="flex items-center space-x-4">
+               <div className="bg-white/20 p-3 rounded-2xl animate-pulse">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+               </div>
+               <div>
+                  <p className="text-lg font-bold leading-tight text-white">
+                    Point camera at a location QR code...
+                  </p>
+               </div>
             </div>
           </div>
         ) : (
+          /* STATE 3: Active Navigation */
           <div className="bg-blue-600/90 backdrop-blur-lg p-6 rounded-3xl shadow-2xl animate-in slide-in-from-bottom border border-blue-400/30">
             <div className="flex items-center space-x-4">
                <div className="bg-white/20 p-3 rounded-2xl">
@@ -86,7 +103,7 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
                </div>
                <div>
                   <p className="text-xs text-blue-100 font-medium uppercase tracking-tighter mb-1">Instruction</p>
-                  <p className="text-lg font-bold leading-tight">
+                  <p className="text-lg font-bold leading-tight text-white">
                     {currentInstruction}
                   </p>
                </div>

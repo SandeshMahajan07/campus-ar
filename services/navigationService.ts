@@ -1,4 +1,3 @@
-
 import { CampusMap, CampusNode, NavigationPath } from '../types';
 
 export const findShortestPath = (
@@ -31,12 +30,13 @@ export const findShortestPath = (
 
     nodes.delete(closestNodeId);
 
-    const neighbors = map.edges.filter((e) => e.from === closestNodeId);
+    const neighbors = map.edges.filter((e) => e.from === closestNodeId || e.to === closestNodeId);
     neighbors.forEach((edge) => {
+      const neighborId = edge.from === closestNodeId ? edge.to : edge.from;
       const alt = distances[closestNodeId!] + edge.distance;
-      if (alt < distances[edge.to]) {
-        distances[edge.to] = alt;
-        previous[edge.to] = closestNodeId;
+      if (alt < distances[neighborId]) {
+        distances[neighborId] = alt;
+        previous[neighborId] = closestNodeId;
       }
     });
   }

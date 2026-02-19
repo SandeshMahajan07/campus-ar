@@ -2,9 +2,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import ARViewer from './components/ARViewer';
 import NavigationUI from './components/NavigationUI';
-import { findShortestPath, calculateBearing } from './services/navigationService';
+import { findShortestPath } from './services/navigationService';
 import { CAMPUS_DATA } from './constants';
-import { CampusNode, NavigationPath } from './types';
+import { NavigationPath } from './types';
 
 const App: React.FC = () => {
   const [currentLocationId, setCurrentLocationId] = useState<string | null>(null);
@@ -59,10 +59,16 @@ const App: React.FC = () => {
     if (!activePath || !currentLocationId) return "Point camera at a location QR code...";
     
     const currentIndex = activePath.nodes.findIndex(n => n.id === currentLocationId);
+
+    // Guard: if the scanned node isn't on the active path, don't give a wrong instruction
+    if (currentIndex === -1) return "Scan a QR code along your route to continue...";
+
     if (currentIndex < activePath.nodes.length - 1) {
       const nextNode = activePath.nodes[currentIndex + 1];
+      // Check both directions since edges are bidirectional
       const edge = CAMPUS_DATA.edges.find(
-        e => e.from === currentLocationId && e.to === nextNode.id
+        e => (e.from === currentLocationId && e.to === nextNode.id) ||
+             (e.to === currentLocationId && e.from === nextNode.id)
       );
       
       let instruction = edge?.instruction || "Proceed to the next waypoint";
@@ -103,6 +109,7 @@ const App: React.FC = () => {
         onReset={resetNavigation}
         currentInstruction={currentInstruction}
         activePath={activePath?.nodes || null}
+        isWaitingForScan={!!destinationId && !currentLocationId}
       />
 
       {!compassPermissionGranted && (
