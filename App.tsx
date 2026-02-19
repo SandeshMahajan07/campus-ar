@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import ARViewer from './components/ARViewer';
 import NavigationUI from './components/NavigationUI';
-import { findShortestPath } from './services/navigationService';
+import { findShortestPath, calculateBearing } from './services/navigationService';
 import { CAMPUS_DATA } from './constants';
 import { CampusNode, NavigationPath } from './types';
 
@@ -10,17 +10,78 @@ const App: React.FC = () => {
   const [currentLocationId, setCurrentLocationId] = useState<string | null>(null);
   const [destinationId, setDestinationId] = useState<string | null>(null);
   const [activePath, setActivePath] = useState<NavigationPath | null>(null);
+  const [compassPermissionGranted, setCompassPermissionGranted] = useState(false);
 
-  const startNavigation = useCallback((start: string, end: string) => {
-    const path = findShortestPath(CAMPUS_DATA, start, end);
-    if (path) {
-      setCurrentLocationId(start);
-      setDestinationId(end);
-      setActivePath(path);
-    } else {
-      alert("No path found between these points.");
+  const startNavigation = useCallback((start: string | null, end: string) => {
+    // If we don't have a start yet, we just set the destination and wait for a QR scan
+    setDestinationId(end);
+    if (start) {
+      const path = findShortestPath(CAMPUS_DATA, start, end);
+      if (path) {
+        setActivePath(path);
+      }
     }
   }, []);
+
+  const handleQRScanned = useCallback((qrData: string) => {
+    // Check if the QR data matches a node ID
+    const detectedNode = CAMPUS_DATA.nodes.find(n => n.id === qrData);
+    if (detectedNode && detectedNode.id !== currentLocationId) {
+      setCurrentLocationId(detectedNode.id);
+      
+      // If we already have a destination, recalculate path from this new scan
+      if (destinationId) {
+        const path = findShortestPath(CAMPUS_DATA, detectedNode.id, destinationId);
+        if (path) {
+          setActivePath(path);
+        }
+      }
+    }
+  }, [currentLocationId, destinationId]);
+
+  const requestCompassPermission = async () => {
+    // Required for iOS 13+
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      try {
+        const permission = await (DeviceOrientationEvent as any).requestPermission();
+        if (permission === 'granted') {
+          setCompassPermissionGranted(true);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      setCompassPermissionGranted(true);
+    }
+  };
+
+  const currentInstruction = useMemo(() => {
+    if (!activePath || !currentLocationId) return "Point camera at a location QR code...";
+    
+    const currentIndex = activePath.nodes.findIndex(n => n.id === currentLocationId);
+    if (currentIndex < activePath.nodes.length - 1) {
+      const nextNode = activePath.nodes[currentIndex + 1];
+      const edge = CAMPUS_DATA.edges.find(
+        e => e.from === currentLocationId && e.to === nextNode.id
+      );
+      
+      let instruction = edge?.instruction || "Proceed to the next waypoint";
+      if (nextNode.floor > 0) {
+        instruction += ` (Floor ${nextNode.floor})`;
+      }
+      return instruction;
+    }
+    return "You have arrived!";
+  }, [activePath, currentLocationId]);
+
+  const targetBearing = useMemo(() => {
+    if (!activePath || !currentLocationId) return 0;
+    const currentIndex = activePath.nodes.findIndex(n => n.id === currentLocationId);
+    if (currentIndex < activePath.nodes.length - 1) {
+      return calculateBearing(activePath.nodes[currentIndex], activePath.nodes[currentIndex + 1]);
+    }
+    return 0;
+  }, [activePath, currentLocationId]);
 
   const resetNavigation = () => {
     setCurrentLocationId(null);
@@ -28,47 +89,39 @@ const App: React.FC = () => {
     setActivePath(null);
   };
 
-  const currentInstruction = useMemo(() => {
-    if (!activePath || !currentLocationId) return null;
-    
-    // In a production app, we'd update this based on marker scanning
-    // For this prototype, we show the next step in the sequence
-    const currentIndex = activePath.nodes.findIndex(n => n.id === currentLocationId);
-    if (currentIndex < activePath.nodes.length - 1) {
-      const edge = CAMPUS_DATA.edges.find(
-        e => e.from === currentLocationId && e.to === activePath.nodes[currentIndex + 1].id
-      );
-      return edge?.instruction || "Proceed to the next waypoint";
-    }
-    return "You have arrived!";
-  }, [activePath, currentLocationId]);
-
-  // Logic for the AR arrow orientation
-  const arrowDirection = useMemo(() => {
-    // Arbitrary rotation mapping for visual feedback in this prototype
-    return (Date.now() / 100) % 360; 
-  }, []);
-
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {/* Background AR Scene */}
       <ARViewer 
         isActive={!!activePath} 
-        direction={arrowDirection} 
+        targetBearing={targetBearing}
+        onQRScanned={handleQRScanned}
       />
 
-      {/* Foreground UI */}
       <NavigationUI 
-        onStartNavigation={startNavigation}
+        onStartNavigation={(s, e) => startNavigation(s, e)}
         onReset={resetNavigation}
         currentInstruction={currentInstruction}
         activePath={activePath?.nodes || null}
       />
 
-      {/* Safety Overlay for First Time Users */}
+      {!compassPermissionGranted && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-6 text-center">
+          <div className="bg-gray-800 p-8 rounded-3xl border border-white/10 shadow-2xl space-y-4">
+            <h2 className="text-xl font-bold">Calibrate Compass</h2>
+            <p className="text-sm text-gray-400">To point the arrow correctly, we need access to your device's orientation sensors.</p>
+            <button 
+              onClick={requestCompassPermission}
+              className="w-full py-3 bg-blue-600 rounded-xl font-bold"
+            >
+              Enable Compass
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="fixed bottom-0 left-0 right-0 p-4 z-[40] pointer-events-none">
         <div className="max-w-xs mx-auto bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full text-[10px] text-gray-400 text-center">
-          Maintain awareness of your surroundings. Do not use while walking near stairs.
+          {currentLocationId ? `Located at: ${CAMPUS_DATA.nodes.find(n => n.id === currentLocationId)?.name}` : "Scanning for QR location..."}
         </div>
       </div>
     </div>

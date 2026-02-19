@@ -3,8 +3,10 @@ export interface CampusNode {
   id: string;
   name: string;
   floor: number;
+  lat: number;
+  lng: number;
   description: string;
-  type: 'entrance' | 'room' | 'junction' | 'stairs' | 'elevator';
+  type: 'entrance' | 'room' | 'junction' | 'stairs' | 'elevator' | 'parking';
 }
 
 export interface Edge {
