@@ -74,13 +74,14 @@ const App: React.FC = () => {
     return "You have arrived!";
   }, [activePath, currentLocationId]);
 
-  const targetBearing = useMemo(() => {
-    if (!activePath || !currentLocationId) return 0;
+  const targetNode = useMemo(() => {
+    if (!activePath || !currentLocationId) return null;
     const currentIndex = activePath.nodes.findIndex(n => n.id === currentLocationId);
+    
     if (currentIndex < activePath.nodes.length - 1) {
-      return calculateBearing(activePath.nodes[currentIndex], activePath.nodes[currentIndex + 1]);
+      return activePath.nodes[currentIndex + 1]; // The next waypoint
     }
-    return 0;
+    return activePath.nodes[activePath.nodes.length - 1]; // The final destination
   }, [activePath, currentLocationId]);
 
   const resetNavigation = () => {
@@ -93,7 +94,7 @@ const App: React.FC = () => {
     <div className="relative w-full h-full overflow-hidden">
       <ARViewer 
         isActive={!!activePath} 
-        targetBearing={targetBearing}
+        targetNode={targetNode}
         onQRScanned={handleQRScanned}
       />
 
