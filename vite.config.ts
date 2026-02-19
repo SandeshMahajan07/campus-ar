@@ -4,13 +4,15 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // Using './' ensures that assets are loaded relative to index.html 
-  // no matter what subfolder the site is hosted in.
-  base: './', 
+  // Use '/' for Render and most hosting platforms. 
+  // If you go back to GitHub Pages subfolders, you can change this to './'
+  base: '/', 
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    // Generates source maps for easier debugging
-    sourcemap: true,
+    sourcemap: false,
+  },
+  server: {
+    host: true
   }
 });
