@@ -1,0 +1,7 @@
+{
+  "name": "CampusPath AR - Alumni Navigation",
+  "description": "A web-based indoor AR navigation platform for university alumni using QR/Marker-based positioning and real-time 3D guidance.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
