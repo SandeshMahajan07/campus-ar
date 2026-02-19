@@ -28,21 +28,22 @@ const ARViewer: React.FC<ARViewerProps> = ({ isActive, targetBearing, onQRScanne
   const [heading, setHeading] = useState(0);
   const scannerRef = useRef<number | null>(null);
 
-  // Handle Compass Heading
   useEffect(() => {
     const handleOrientation = (e: any) => {
-      // webkitCompassHeading is for iOS, alpha is usually for Android
-      const rawHeading = e.webkitCompassHeading || (360 - e.alpha);
-      if (rawHeading !== undefined) {
-        setHeading(rawHeading);
+      // Logic for both iOS and Android orientation
+      let rawHeading = 0;
+      if (e.webkitCompassHeading) {
+        rawHeading = e.webkitCompassHeading;
+      } else if (e.alpha !== null) {
+        rawHeading = 360 - e.alpha;
       }
+      setHeading(rawHeading);
     };
 
     window.addEventListener('deviceorientation', handleOrientation, true);
     return () => window.removeEventListener('deviceorientation', handleOrientation);
   }, []);
 
-  // Handle QR Scanning
   useEffect(() => {
     const scan = () => {
       const video = document.querySelector('video');
@@ -71,15 +72,15 @@ const ARViewer: React.FC<ARViewerProps> = ({ isActive, targetBearing, onQRScanne
     };
   }, [onQRScanned]);
 
-  // The arrow needs to rotate based on (Bearing to Target - Current Phone Heading)
+  // Relative rotation logic
   const arrowRotation = (targetBearing - heading + 360) % 360;
 
   return (
     <a-scene
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; trackingMethod: best;"
       vr-mode-ui="enabled: false"
-      renderer="antialias: true; alpha: true;"
+      renderer="antialias: true; alpha: true; precision: medium;"
     >
       <a-marker preset="hiro">
         {isActive && (
@@ -91,11 +92,11 @@ const ARViewer: React.FC<ARViewerProps> = ({ isActive, targetBearing, onQRScanne
               <a-cylinder position="0 0.5 0" radius="0.1" height="1" color="#3b82f6"></a-cylinder>
               <a-cone position="0 1.2 0" radius-bottom="0.3" height="0.6" color="#60a5fa"></a-cone>
             </a-entity>
-            <a-text value="TARGET" position="0 1.8 0" align="center" width="4" color="#ffffff"></a-text>
+            <a-text value="DESTINATION" position="0 1.8 0" align="center" width="4" color="#ffffff" font="roboto"></a-text>
           </a-entity>
         )}
       </a-marker>
-      <a-camera gps-camera rotation-reader></a-camera>
+      <a-camera rotation-reader></a-camera>
     </a-scene>
   );
 };

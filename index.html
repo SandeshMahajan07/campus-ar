@@ -7,15 +7,25 @@
     <title>CampusPath AR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- A-Frame and AR.js for Web-based AR -->
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/ar.js@2.2.2/aframe/build/aframe-ar.js" crossorigin="anonymous"></script>
     <!-- jsQR for camera-based QR detection -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" crossorigin="anonymous"></script>
     <style>
-      body { margin: 0; overflow: hidden; font-family: sans-serif; }
-      #root { position: relative; width: 100vw; height: 100vh; z-index: 10; pointer-events: none; }
+      body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #111827; }
+      #root { 
+        position: absolute; 
+        top: 0; 
+        left: 0; 
+        width: 100vw; 
+        height: 100vh; 
+        z-index: 10; 
+        pointer-events: none; 
+      }
       #root > * { pointer-events: auto; }
+      /* Ensure AR canvas is behind UI but fills screen */
       .a-canvas { z-index: 0 !important; }
+      .a-loader-title { color: white !important; }
     </style>
 <script type="importmap">
 {
@@ -31,6 +41,7 @@
 </head>
 <body class="bg-gray-900 text-white">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <!-- Vite entry point -->
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>

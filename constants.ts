@@ -3,7 +3,7 @@ import { CampusMap } from './types';
 
 export const CAMPUS_DATA: CampusMap = {
   nodes: [
-    { id: 'MAIN_GATE', name: 'Main Gate', floor: 0, lat: 17.31557537502064, lng: 76.83304456564909, description: 'University Entrance', type: 'entrance' },
+    { id: 'MAIN_GATE', name: 'Main Gate', floor: 0, lat: 17.31557537502064, lng: 76.833044564909, description: 'University Entrance', type: 'entrance' },
     { id: 'BOYS_PARKING', name: 'Boys Parking', floor: 0, lat: 17.3153930643524, lng: 76.83333820597595, description: 'Parking area near gate', type: 'parking' },
     { id: 'MAIN_BLDG', name: 'Main Building', floor: 0, lat: 17.315180652010394, lng: 76.83389045305594, description: 'Iconic main campus structure', type: 'room' },
     { id: 'CSE_DEPT', name: 'CSE Department', floor: 0, lat: 17.3154975168783, lng: 76.83408580373516, description: 'Computer Science block', type: 'room' },
@@ -26,7 +26,6 @@ export const CAMPUS_DATA: CampusMap = {
     { id: 'SAC_BLDG', name: 'SAC Building', floor: 0, lat: 17.313930370422916, lng: 76.83635539405459, description: 'Student Activity Center', type: 'room' },
   ],
   edges: [
-    // Logical Connections (Paths)
     { from: 'MAIN_GATE', to: 'BOYS_PARKING', distance: 30, instruction: 'Head East toward Boys Parking' },
     { from: 'BOYS_PARKING', to: 'MAIN_BLDG', distance: 60, instruction: 'Walk forward to the Main Building' },
     { from: 'MAIN_BLDG', to: 'INTERSECTION', distance: 80, instruction: 'Proceed straight to the Intersection (Chaurashta)' },
@@ -42,8 +41,6 @@ export const CAMPUS_DATA: CampusMap = {
     { from: 'MECH_BLOCK', to: 'CSE_NEW', distance: 20, instruction: 'Go up to the First Floor for New CSE Centre' },
     { from: 'CANTEEN', to: 'ARCH_DEPT', distance: 50, instruction: 'Head South to Architecture' },
     { from: 'CANTEEN', to: 'SAC_BLDG', distance: 110, instruction: 'Follow the main path to the SAC Building' },
-    
-    // Reverse Edges for bidirectional navigation
     { from: 'INTERSECTION', to: 'MAIN_BLDG', distance: 80, instruction: 'Return toward the Main Building' },
     { from: 'BOYS_PARKING', to: 'MAIN_GATE', distance: 30, instruction: 'Head back to the Main Gate' }
   ]
