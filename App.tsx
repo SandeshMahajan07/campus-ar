@@ -4,6 +4,7 @@ import NavigationUI from './components/NavigationUI';
 import MiniMap from './components/MiniMap';
 import DirectionArrow from './components/DirectionArrow';
 import ArrivalScreen from './components/ArrivalScreen';
+import AdminPage from './components/AdminPage';
 import { findShortestPath, calculateBearing } from './services/navigationService';
 import { DeadReckoning, Position } from './services/deadReckoning';
 import { CAMPUS_DATA } from './constants';
@@ -181,6 +182,11 @@ const App: React.FC = () => {
   };
 
   const isNavigating = !!activePath && !!currentLocationId && !showArrival;
+
+  // Simple client-side routing — /admin shows the admin page
+  if (window.location.pathname === '/admin') {
+    return <AdminPage />;
+  }
 
   return (
     <div className="relative w-full h-full overflow-hidden">
