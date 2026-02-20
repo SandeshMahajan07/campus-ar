@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CampusNode } from '../types';
 import { CAMPUS_DATA } from '../constants';
 
@@ -9,10 +9,12 @@ interface NavigationUIProps {
   onReset: () => void;
   isWaitingForScan: boolean;
   currentLocationId: string | null;
-  stepsSinceLastScan: number; // for drift warning
+  stepsSinceLastScan: number;
 }
 
-const DRIFT_WARNING_STEPS = 50; // warn after 50 steps without a QR scan
+const DRIFT_WARNING_STEPS = 50;
+const RECENT_KEY = 'campuspath_recent';
+const MAX_RECENT = 3;
 
 const NavigationUI: React.FC<NavigationUIProps> = ({
   onStartNavigation,
@@ -24,17 +26,47 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
   stepsSinceLastScan,
 }) => {
   const [dest, setDest] = useState<string>('');
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+
+  // Load recently visited from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(RECENT_KEY);
+      if (stored) setRecentIds(JSON.parse(stored));
+    } catch { }
+  }, []);
+
+  const saveRecent = (nodeId: string) => {
+    try {
+      const updated = [nodeId, ...recentIds.filter(id => id !== nodeId)].slice(0, MAX_RECENT);
+      setRecentIds(updated);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+    } catch { }
+  };
+
+  const handleStart = () => {
+    if (!dest) return;
+    saveRecent(dest);
+    onStartNavigation(null, dest);
+  };
+
+  const handleQuickSelect = (nodeId: string) => {
+    saveRecent(nodeId);
+    onStartNavigation(null, nodeId);
+  };
 
   const destinations = CAMPUS_DATA.nodes.filter(
     n => n.type === 'room' || n.type === 'entrance' || n.type === 'parking'
   );
 
-  // Step progress: which index in the path is current
+  const recentNodes = recentIds
+    .map(id => CAMPUS_DATA.nodes.find(n => n.id === id))
+    .filter(Boolean) as CampusNode[];
+
   const currentStepIndex = activePath && currentLocationId
     ? activePath.findIndex(n => n.id === currentLocationId)
     : -1;
   const totalSteps = activePath?.length ?? 0;
-
   const showDriftWarning = stepsSinceLastScan >= DRIFT_WARNING_STEPS;
 
   return (
@@ -58,18 +90,13 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
           )}
         </div>
 
-        {/* ── STEP PROGRESS BAR ── only when navigating */}
+        {/* Step progress bar */}
         {activePath && currentStepIndex >= 0 && (
           <div className="mt-3">
             <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-blue-300 font-semibold uppercase tracking-wide">
-                Route Progress
-              </span>
-              <span className="text-xs text-gray-400">
-                Stop {currentStepIndex + 1} of {totalSteps}
-              </span>
+              <span className="text-xs text-blue-300 font-semibold uppercase tracking-wide">Route Progress</span>
+              <span className="text-xs text-gray-400">Stop {currentStepIndex + 1} of {totalSteps}</span>
             </div>
-            {/* Progress dots */}
             <div className="flex items-center gap-1.5">
               {activePath.map((node, i) => (
                 <div key={node.id} className="flex items-center gap-1.5 flex-1">
@@ -79,24 +106,13 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
                       width: i === currentStepIndex ? 10 : 7,
                       height: i === currentStepIndex ? 10 : 7,
                       minWidth: i === currentStepIndex ? 10 : 7,
-                      background: i < currentStepIndex
-                        ? '#22c55e'                         // passed — green
-                        : i === currentStepIndex
-                        ? '#3b82f6'                         // current — blue
-                        : 'rgba(255,255,255,0.2)',          // upcoming — grey
+                      background: i < currentStepIndex ? '#22c55e' : i === currentStepIndex ? '#3b82f6' : 'rgba(255,255,255,0.2)',
                       boxShadow: i === currentStepIndex ? '0 0 6px rgba(59,130,246,0.8)' : 'none',
                     }}
                   />
-                  {/* Connector line between dots */}
                   {i < activePath.length - 1 && (
-                    <div
-                      className="h-0.5 flex-1 rounded-full transition-all duration-300"
-                      style={{
-                        background: i < currentStepIndex
-                          ? '#22c55e'
-                          : 'rgba(255,255,255,0.15)',
-                      }}
-                    />
+                    <div className="h-0.5 flex-1 rounded-full transition-all duration-300"
+                      style={{ background: i < currentStepIndex ? '#22c55e' : 'rgba(255,255,255,0.15)' }} />
                   )}
                 </div>
               ))}
@@ -107,7 +123,7 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
 
       <div className="space-y-3 pointer-events-auto">
 
-        {/* ── DRIFT WARNING ── */}
+        {/* Drift warning */}
         {showDriftWarning && activePath && currentLocationId && (
           <div className="bg-orange-500/90 backdrop-blur-lg p-4 rounded-2xl shadow-2xl border border-orange-400/30 flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-xl shrink-0">
@@ -117,25 +133,43 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
               </svg>
             </div>
             <div>
-              <p className="text-white font-bold text-sm leading-tight">
-                Look for a QR code to recalibrate
-              </p>
-              <p className="text-orange-100 text-xs mt-0.5">
-                {stepsSinceLastScan} steps since last scan — position may have drifted
-              </p>
+              <p className="text-white font-bold text-sm leading-tight">Look for a QR code to recalibrate</p>
+              <p className="text-orange-100 text-xs mt-0.5">{stepsSinceLastScan} steps since last scan — position may have drifted</p>
             </div>
           </div>
         )}
 
-        {/* ── MAIN STATE PANEL ── */}
+        {/* Main state panels */}
         {!activePath && !isWaitingForScan ? (
-
-          /* STATE 1: Choose destination */
           <div className="bg-gray-900/80 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-2xl">
             <div className="space-y-4">
+
+              {/* Recently visited */}
+              {recentNodes.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 tracking-wide">
+                    Recent
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {recentNodes.map(node => (
+                      <button
+                        key={node.id}
+                        onClick={() => handleQuickSelect(node.id)}
+                        className="bg-white/5 border border-white/10 text-gray-300 text-xs font-semibold px-3 py-2 rounded-xl hover:bg-blue-600/30 hover:border-blue-500/40 hover:text-white transition-all active:scale-95"
+                      >
+                        {node.name}
+                        {node.floor > 0 && (
+                          <span className="ml-1 text-gray-500">F{node.floor}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-blue-300 uppercase mb-2">
-                  Select Your Destination
+                  Select Destination
                 </label>
                 <select
                   className="w-full bg-gray-800 border border-gray-700 text-white p-4 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
@@ -152,7 +186,7 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
               </div>
 
               <button
-                onClick={() => dest && onStartNavigation(null, dest)}
+                onClick={handleStart}
                 disabled={!dest}
                 className={`w-full py-5 rounded-2xl font-bold transition-all transform active:scale-95 flex items-center justify-center space-x-2 ${
                   dest
@@ -169,8 +203,6 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
           </div>
 
         ) : isWaitingForScan ? (
-
-          /* STATE 2: Waiting for QR scan */
           <div className="bg-yellow-500/90 backdrop-blur-lg p-6 rounded-3xl shadow-2xl border border-yellow-400/30">
             <div className="flex items-center space-x-4">
               <div className="bg-white/20 p-3 rounded-2xl animate-pulse shrink-0">
@@ -186,8 +218,6 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
           </div>
 
         ) : (
-
-          /* STATE 3: Active Navigation */
           <div className="bg-blue-600/90 backdrop-blur-lg p-6 rounded-3xl shadow-2xl border border-blue-400/30">
             <div className="flex items-center space-x-4">
               <div className="bg-white/20 p-3 rounded-2xl shrink-0">
@@ -196,16 +226,11 @@ const NavigationUI: React.FC<NavigationUIProps> = ({
                 </svg>
               </div>
               <div>
-                <p className="text-xs text-blue-100 font-medium uppercase tracking-tighter mb-1">
-                  Next Step
-                </p>
-                <p className="text-lg font-bold leading-tight text-white">
-                  {currentInstruction}
-                </p>
+                <p className="text-xs text-blue-100 font-medium uppercase tracking-tighter mb-1">Next Step</p>
+                <p className="text-lg font-bold leading-tight text-white">{currentInstruction}</p>
               </div>
             </div>
           </div>
-
         )}
       </div>
     </div>
