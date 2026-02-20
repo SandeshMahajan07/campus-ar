@@ -18,8 +18,8 @@ const MiniMap: React.FC<MiniMapProps> = ({ currentLocationId, activePath, target
 
   // Compute min/max lat/lng from ALL nodes to build a scale
   const { minLat, maxLat, minLng, maxLng } = useMemo(() => {
-    const lats = CAMPUS_DATA.nodes.map(n => n.lat);
-    const lngs = CAMPUS_DATA.nodes.map(n => n.lng);
+    const lats = (activePath ?? CAMPUS_DATA.nodes).map(n => n.lat);
+    const lngs = (activePath ?? CAMPUS_DATA.nodes).map(n => n.lng);
     return {
       minLat: Math.min(...lats),
       maxLat: Math.max(...lats),
