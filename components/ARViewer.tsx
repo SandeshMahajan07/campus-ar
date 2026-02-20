@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CampusNode } from '../types';
 
 declare global {
@@ -9,8 +9,12 @@ declare global {
         'a-scene': any;
         'a-entity': any;
         'a-cone': any;
+        'a-cylinder': any;
+        'a-sphere': any;
+        'a-ring': any;
         'a-text': any;
         'a-camera': any;
+        'a-light': any;
       }
     }
   }
@@ -29,27 +33,10 @@ const ARViewer: React.FC<ARViewerProps> = ({ isActive, targetNode, onQRScanned }
   const lastScannedRef = useRef<string | null>(null);
   const lastScannedTimeRef = useRef<number>(0);
 
-  // Debug state — visible on screen
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-
-  const log = (msg: string) => {
-    console.log('[QR]', msg);
-    setDebugLog(prev => [`${new Date().toLocaleTimeString()}: ${msg}`, ...prev.slice(0, 6)]);
-  };
-
   useEffect(() => {
     let destroyed = false;
 
     const startScanner = async () => {
-      log('Starting camera...');
-
-      // Check if jsQR is loaded
-      if (!window.jsQR) {
-        log('ERROR: jsQR not loaded!');
-      } else {
-        log('jsQR is ready ✓');
-      }
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -59,12 +46,8 @@ const ARViewer: React.FC<ARViewerProps> = ({ isActive, targetNode, onQRScanned }
           }
         });
 
-        if (destroyed) {
-          stream.getTracks().forEach(t => t.stop());
-          return;
-        }
+        if (destroyed) { stream.getTracks().forEach(t => t.stop()); return; }
 
-        log('Camera stream acquired ✓');
         streamRef.current = stream;
 
         const video = document.createElement('video');
@@ -76,56 +59,33 @@ const ARViewer: React.FC<ARViewerProps> = ({ isActive, targetNode, onQRScanned }
         videoRef.current = video;
 
         await video.play();
-        log(`Video playing ✓ (${video.videoWidth}x${video.videoHeight})`);
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-        let frameCount = 0;
-
         const scan = () => {
           if (destroyed) return;
 
-          frameCount++;
-
-          // Log video state every 60 frames (~1 sec)
-          if (frameCount % 60 === 0) {
-            log(`Scanning... readyState=${video.readyState} size=${video.videoWidth}x${video.videoHeight} jsQR=${!!window.jsQR}`);
-          }
-
-          if (
-            video.readyState === video.HAVE_ENOUGH_DATA &&
-            window.jsQR &&
-            video.videoWidth > 0
-          ) {
+          if (video.readyState === video.HAVE_ENOUGH_DATA && window.jsQR && video.videoWidth > 0) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
             if (ctx) {
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
               const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
               const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
                 inversionAttempts: 'attemptBoth',
               });
 
-              if (code && code.data) {
-                log(`QR DETECTED: "${code.data}" ✓`);
+              if (code?.data) {
                 const now = Date.now();
-                if (
-                  code.data !== lastScannedRef.current ||
-                  now - lastScannedTimeRef.current > 3000
-                ) {
+                if (code.data !== lastScannedRef.current || now - lastScannedTimeRef.current > 3000) {
                   lastScannedRef.current = code.data;
                   lastScannedTimeRef.current = now;
                   onQRScanned(code.data);
                 }
               }
             }
-          } else if (frameCount % 60 === 0) {
-            if (!window.jsQR) log('WAITING: jsQR not ready');
-            else if (video.readyState !== video.HAVE_ENOUGH_DATA) log(`WAITING: video readyState=${video.readyState}`);
-            else if (video.videoWidth === 0) log('WAITING: video dimensions 0');
           }
 
           scannerRef.current = requestAnimationFrame(scan);
@@ -134,7 +94,7 @@ const ARViewer: React.FC<ARViewerProps> = ({ isActive, targetNode, onQRScanned }
         scannerRef.current = requestAnimationFrame(scan);
 
       } catch (err: any) {
-        log(`CAMERA ERROR: ${err.message}`);
+        console.error('QR Scanner error:', err.message);
       }
     };
 
@@ -144,79 +104,122 @@ const ARViewer: React.FC<ARViewerProps> = ({ isActive, targetNode, onQRScanned }
       destroyed = true;
       if (scannerRef.current) cancelAnimationFrame(scannerRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-      if (videoRef.current) {
-        videoRef.current.remove();
-        videoRef.current = null;
-      }
+      if (videoRef.current) { videoRef.current.remove(); videoRef.current = null; }
     };
   }, [onQRScanned]);
 
   return (
-    <>
-      <a-scene
-        vr-mode-ui="enabled: false"
-        arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
-        renderer="antialias: true; alpha: true"
-      >
-        <a-camera gps-camera rotation-reader></a-camera>
+    <a-scene
+      vr-mode-ui="enabled: false"
+      arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false;"
+      renderer="antialias: true; alpha: true"
+    >
+      {/* Ambient + directional light for better 3D shading */}
+      <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+      <a-light type="directional" position="1 3 -1" color="#ffffff" intensity="0.8"></a-light>
 
-        {isActive && targetNode && (
-          <a-entity
-            gps-entity-place={`latitude: ${targetNode.lat}; longitude: ${targetNode.lng};`}
-          >
-            <a-entity animation="property: position; to: 0 2 0; dur: 1000; dir: alternate; loop: true">
-              <a-cone
-                position="0 4 0"
-                radius-bottom="1.5"
-                height="3"
-                color="#3b82f6"
-                rotation="180 0 0"
-                opacity="0.9"
-              ></a-cone>
+      <a-camera gps-camera rotation-reader></a-camera>
+
+      {isActive && targetNode && (
+        <a-entity
+          gps-entity-place={`latitude: ${targetNode.lat}; longitude: ${targetNode.lng};`}
+        >
+          {/* 
+            ── GROUND PULSE RING ──
+            A flat ring on the ground that pulses outward to draw attention
+          */}
+          <a-ring
+            position="0 0.05 0"
+            radius-inner="0.8"
+            radius-outer="1.2"
+            color="#3b82f6"
+            opacity="0.6"
+            rotation="-90 0 0"
+            animation__scale="property: scale; from: 1 1 1; to: 2.5 2.5 2.5; dur: 1500; loop: true; easing: easeOutQuad"
+            animation__opacity="property: opacity; from: 0.6; to: 0; dur: 1500; loop: true; easing: easeOutQuad"
+          ></a-ring>
+
+          {/* Static base ring */}
+          <a-ring
+            position="0 0.05 0"
+            radius-inner="0.5"
+            radius-outer="0.8"
+            color="#60a5fa"
+            opacity="0.9"
+            rotation="-90 0 0"
+          ></a-ring>
+
+          {/* 
+            ── BOBBING WRAPPER ──
+            Everything above ground bobs up and down
+          */}
+          <a-entity animation="property: position; from: 0 0 0; to: 0 0.6 0; dur: 1200; dir: alternate; loop: true; easing: easeInOutSine">
+
+            {/* Vertical shaft (cylinder) */}
+            <a-cylinder
+              position="0 2 0"
+              radius="0.18"
+              height="3.5"
+              color="#2563eb"
+              shadow
+            ></a-cylinder>
+
+            {/* Arrow head (cone pointing down toward ground) */}
+            <a-cone
+              position="0 0.4 0"
+              radius-bottom="0.9"
+              radius-top="0"
+              height="1.8"
+              color="#3b82f6"
+              rotation="180 0 0"
+              shadow
+            ></a-cone>
+
+            {/* Top sphere cap (makes the pin look like a classic map pin) */}
+            <a-sphere
+              position="0 3.8 0"
+              radius="0.55"
+              color="#60a5fa"
+              shadow
+            ></a-sphere>
+
+            {/* 
+              ── NAME LABEL ──
+              Always faces the camera, floats above the pin
+            */}
+            <a-entity position="0 5.2 0" look-at="[gps-camera]">
+              {/* Label background pill */}
+              <a-entity
+                geometry="primitive: plane; width: 4.5; height: 0.9"
+                material="color: #1e3a8a; opacity: 0.85; transparent: true; side: double"
+                position="0 0 -0.01"
+              ></a-entity>
+
+              {/* Destination name */}
               <a-text
                 value={targetNode.name}
-                look-at="[gps-camera]"
-                scale="5 5 5"
-                position="0 6 0"
                 align="center"
                 color="#ffffff"
+                width="4"
+                position="0 0.05 0"
+                font="exo2bold"
+              ></a-text>
+
+              {/* "HEAD TO" sub-label */}
+              <a-text
+                value="HEAD TO"
+                align="center"
+                color="#93c5fd"
+                width="3"
+                position="0 -0.35 0"
+                font="exo2bold"
               ></a-text>
             </a-entity>
-          </a-entity>
-        )}
-      </a-scene>
 
-      {/* DEBUG OVERLAY — fixed to top right, always visible */}
-      <div style={{
-        position: 'fixed',
-        top: 80,
-        right: 8,
-        zIndex: 9999,
-        background: 'rgba(0,0,0,0.85)',
-        color: '#00ff88',
-        fontFamily: 'monospace',
-        fontSize: 11,
-        padding: '8px 10px',
-        borderRadius: 8,
-        maxWidth: 260,
-        pointerEvents: 'none',
-        border: '1px solid #00ff8844'
-      }}>
-        <div style={{ color: '#ffffff', fontWeight: 'bold', marginBottom: 4 }}>🔍 QR Debug</div>
-        {debugLog.length === 0 ? (
-          <div>Initializing...</div>
-        ) : (
-          debugLog.map((line, i) => (
-            <div key={i} style={{ 
-              opacity: i === 0 ? 1 : 0.5 - i * 0.05,
-              color: line.includes('ERROR') || line.includes('WAITING') ? '#ff6b6b' : line.includes('✓') ? '#00ff88' : '#ffffff'
-            }}>
-              {line}
-            </div>
-          ))
-        )}
-      </div>
-    </>
+          </a-entity>
+        </a-entity>
+      )}
+    </a-scene>
   );
 };
 
