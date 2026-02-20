@@ -3,8 +3,8 @@ import { CampusMap } from './types';
 
 export const CAMPUS_DATA: CampusMap = {
   nodes: [
-    { id: 'MAIN_GATE', name: 'Main Gate', floor: 0, lat: 17.33065972632171, lng: 76.8271500651366, description: 'University Entrance', type: 'entrance' },
-    { id: 'BOYS_PARKING', name: 'Boys Parking', floor: 0, lat: 17.330810110301435, lng: 76.82504397011486, description: 'Parking area near gate', type: 'parking' },
+    { id: 'MAIN_GATE', name: 'Main Gate', floor: 0, lat: 17.31554902420121, lng: 76.83301794475705, description: 'University Entrance', type: 'entrance' },
+    { id: 'BOYS_PARKING', name: 'Boys Parking', floor: 0, lat: 17.315587380642484, lng: 76.83355851176708, description: 'Parking area near gate', type: 'parking' },
     { id: 'MAIN_BLDG', name: 'Main Building', floor: 0, lat: 17.315180652010394, lng: 76.83389045305594, description: 'Iconic main campus structure', type: 'room' },
     { id: 'CSE_DEPT', name: 'CSE Department', floor: 0, lat: 17.3154975168783, lng: 76.83408580373516, description: 'Computer Science block', type: 'room' },
     { id: 'GIRLS_PARKING', name: 'Girls Parking', floor: 0, lat: 17.315720748480366, lng: 76.83416032052583, description: 'Secure parking area', type: 'parking' },
